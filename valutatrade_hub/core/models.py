@@ -126,12 +126,101 @@ class User:
         return f"User(user_id={self._user_id}, username={self._username!r})"
 
 
-@dataclass
-class Portfolio:
-    """Портфель пользователя (пока заглушка для следующих задач)."""
 
-    username: str
-    positions: dict[str, float] = field(default_factory=dict)
+
+DEFAULT_EXCHANGE_RATES: dict[str, float] = {
+    "USD": 1.0,
+    "EUR": 1.08,
+    "BTC": 67000.0,
+    "ETH": 3500.0,
+}
+
+
+class Portfolio:
+    """Портфель пользователя: набор кошельков по валютам."""
+
+    def __init__(
+        self,
+        user_id: int,
+        wallets: dict[str, "Wallet"] | None = None,
+        user: "User | None" = None,
+    ):
+        self._user_id = user_id
+        self._wallets: dict[str, "Wallet"] = dict(wallets) if wallets else {}
+        self._user = user
+
+    @property
+    def user_id(self) -> int:
+        return self._user_id
+
+    @property
+    def user(self) -> "User | None":
+        return self._user
+
+    @property
+    def wallets(self) -> dict[str, "Wallet"]:
+        return dict(self._wallets)
+
+    def add_currency(self, currency_code: str) -> "Wallet":
+        code = currency_code.strip().upper()
+        if not code:
+            raise ValueError("Код валюты не может быть пустым")
+        if code in self._wallets:
+            raise ValueError(f"Кошелёк {code} уже есть в портфеле")
+        wallet = Wallet(code)
+        self._wallets[code] = wallet
+        return wallet
+
+    def get_wallet(self, currency_code: str) -> "Wallet":
+        code = currency_code.strip().upper()
+        if code not in self._wallets:
+            raise KeyError(f"Кошелёк {code} не найден в портфеле")
+        return self._wallets[code]
+
+    def ensure_wallet(self, currency_code: str) -> "Wallet":
+        code = currency_code.strip().upper()
+        if code not in self._wallets:
+            self._wallets[code] = Wallet(code)
+        return self._wallets[code]
+
+    def get_total_value(
+        self,
+        base_currency: str = "USD",
+        exchange_rates: dict[str, float] | None = None,
+    ) -> float:
+        rates = exchange_rates or DEFAULT_EXCHANGE_RATES
+        base = base_currency.strip().upper()
+        if base not in rates:
+            raise ValueError(f"Нет курса для базовой валюты {base}")
+        base_rate = rates[base]
+        total = 0.0
+        for code, wallet in self._wallets.items():
+            if code not in rates:
+                raise ValueError(f"Нет курса для валюты {code}")
+            total += wallet.balance * rates[code] / base_rate
+        return total
+
+    def to_dict(self) -> dict:
+        return {
+            "user_id": self._user_id,
+            "wallets": {
+                code: {"balance": w.balance} for code, w in self._wallets.items()
+            },
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Portfolio":
+        wallets: dict[str, "Wallet"] = {}
+        for code, w_data in data.get("wallets", {}).items():
+            if isinstance(w_data, dict):
+                balance = w_data.get("balance", 0.0)
+            else:
+                balance = float(w_data)
+            wallets[code] = Wallet(code, balance)
+        return cls(user_id=data["user_id"], wallets=wallets)
+
+    def __repr__(self) -> str:
+        return f"Portfolio(user_id={self._user_id}, currencies={list(self._wallets)})"
 
 
 class Wallet:
@@ -195,3 +284,4 @@ class Wallet:
 
     def __repr__(self) -> str:
         return f"Wallet(currency_code={self._currency_code!r}, balance={self._balance})"
+
