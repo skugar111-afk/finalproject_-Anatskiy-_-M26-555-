@@ -39,3 +39,4 @@ Thumbs.db
 data/session.json
 logs/
 data/exchange_rates.json
+!.env.example
