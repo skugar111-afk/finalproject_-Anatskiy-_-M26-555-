@@ -1,4 +1,4 @@
-"""CLI ValutaTrade Hub: парсер команд, вызовы usecases, форматирование вывода."""
+"""CLI ValutaTrade Hub: парсер команд, вызовы usecases, Parser Service."""
 
 import argparse
 import sys
@@ -10,6 +10,9 @@ from valutatrade_hub.core.exceptions import (
     CurrencyNotFoundError,
     InsufficientFundsError,
 )
+from valutatrade_hub.parser_service.api_clients import build_clients
+from valutatrade_hub.parser_service.storage import RatesStorage
+from valutatrade_hub.parser_service.updater import RatesUpdater
 
 
 def _fmt_money(value: float) -> str:
@@ -63,10 +66,7 @@ def cmd_show_portfolio(args: argparse.Namespace) -> int:
     except ApiRequestError as exc:
         _print_api_error(exc)
         return 1
-    except RuntimeError as exc:
-        print(str(exc))
-        return 1
-    except ValueError as exc:
+    except (RuntimeError, ValueError) as exc:
         print(str(exc))
         return 1
     if not rows:
@@ -166,6 +166,82 @@ def cmd_get_rate(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_update_rates(args: argparse.Namespace) -> int:
+    try:
+        clients = build_clients(args.source)
+    except ValueError as exc:
+        print(str(exc))
+        return 1
+    print("INFO: Starting rates update...")
+    updater = RatesUpdater(clients=clients)
+    try:
+        summary = updater.run_update()
+    except ApiRequestError as exc:
+        _print_api_error(exc)
+        print("Update failed. Check logs/actions.log for details.")
+        return 1
+    updated = summary.get("updated", 0)
+    errors = summary.get("errors", [])
+    if updated == 0:
+        print("Update failed: no rates received.")
+        return 1
+    if errors:
+        print("Update completed with errors. Check logs/actions.log for details.")
+        for err in errors:
+            print(f"  ERROR: {err}")
+    else:
+        print(
+            f"Update successful. Total rates updated: {updated}. "
+            f"Last refresh: {summary.get('last_refresh')}"
+        )
+    return 0
+
+
+def cmd_show_rates(args: argparse.Namespace) -> int:
+    storage = RatesStorage()
+    cache = storage.load_rates()
+    pairs = cache.get("pairs", {})
+    last_refresh = cache.get("last_refresh") or "—"
+    if not pairs:
+        print("Локальный кеш курсов пуст. Выполните 'update-rates', чтобы загрузить данные.")
+        return 1
+
+    items = list(pairs.items())
+    if args.currency:
+        code = args.currency.upper()
+        items = [
+            (k, v)
+            for k, v in items
+            if k.startswith(f"{code}_") or k.endswith(f"_{code}")
+        ]
+        if not items:
+            print(f"Курс для '{code}' не найден в кеше.")
+            return 1
+
+    if args.base:
+        base = args.base.upper()
+        items = [(k, v) for k, v in items if k.endswith(f"_{base}")]
+        if not items:
+            print(f"Нет курсов относительно '{base}'.")
+            return 1
+
+    if args.top:
+        try:
+            n = int(args.top)
+        except ValueError:
+            print("'--top' должен быть целым числом.")
+            return 1
+        items.sort(key=lambda kv: kv[1].get("rate", 0), reverse=True)
+        items = items[:n]
+
+    print(f"Rates from cache (updated at {last_refresh}):")
+    for key, entry in items:
+        rate = entry.get("rate")
+        src = entry.get("source", "?")
+        print(f"- {key}: {rate:.8g} (source: {src})")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="valutatrade", description="ValutaTrade Hub CLI"
@@ -200,6 +276,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_rate.add_argument("--from", dest="from_currency", required=True)
     p_rate.add_argument("--to", dest="to_currency", required=True)
     p_rate.set_defaults(func=cmd_get_rate)
+
+    p_update = sub.add_parser("update-rates", help="Обновить курсы из внешних API")
+    p_update.add_argument("--source", choices=["coingecko", "exchangerate"], default=None)
+    p_update.set_defaults(func=cmd_update_rates)
+
+    p_show_rates = sub.add_parser("show-rates", help="Показать кэш курсов")
+    p_show_rates.add_argument("--currency", default=None)
+    p_show_rates.add_argument("--top", default=None)
+    p_show_rates.add_argument("--base", default=None)
+    p_show_rates.set_defaults(func=cmd_show_rates)
 
     return parser
 
