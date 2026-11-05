@@ -107,7 +107,11 @@ class ExchangeRateApiClient(BaseApiClient):
             error_type = payload.get("error-type", "unknown")
             raise ApiRequestError(f"ExchangeRate-API: {error_type}")
 
-        raw_rates = payload.get("rates") or {}
+        raw_rates = (
+            payload.get("conversion_rates")
+            or payload.get("rates")
+            or {}
+        )
         result: dict[str, float] = {}
         for code in self.config.FIAT_CURRENCIES:
             rate = raw_rates.get(code)
