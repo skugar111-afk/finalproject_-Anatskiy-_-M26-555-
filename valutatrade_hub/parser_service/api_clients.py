@@ -116,7 +116,8 @@ class ExchangeRateApiClient(BaseApiClient):
         for code in self.config.FIAT_CURRENCIES:
             rate = raw_rates.get(code)
             if isinstance(rate, (int, float)) and rate > 0:
-                result[f"{code}_{base}"] = float(rate)
+                # API отдаёт "сколько code за 1 base"; нам нужно "сколько base за 1 code"
+                result[f"{code}_{base}"] = 1.0 / float(rate)
         return result
 
 
