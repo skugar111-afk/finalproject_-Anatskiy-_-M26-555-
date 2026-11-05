@@ -104,7 +104,11 @@ def _save_portfolio(portfolio):
 # ---------- rates.json ----------
 
 def _load_rates():
-    return db.load_dict("rates.json")
+    """Прочитать rates.json, поддерживая и новый ({pairs}), и старый (flat) формат."""
+    raw = db.load_dict("rates.json")
+    if "pairs" in raw and isinstance(raw["pairs"], dict):
+        return raw["pairs"]
+    return raw
 
 
 def _pair_code(f, t):
@@ -115,9 +119,7 @@ def get_rate(from_code, to_code):
     """Курс from→to из кеша rates.json.
 
     Бросает CurrencyNotFoundError на неизвестный код,
-    ApiRequestError если курса нет в кеше и обновить не удалось.
-    TTL из SettingsLoader зарезервирован для ParserService (в учебной версии
-    курсы считаются актуальными, пока присутствуют в кеше).
+    ApiRequestError если курса нет в кеше.
     """
     f = validate_currency(from_code)
     t = validate_currency(to_code)
@@ -138,7 +140,6 @@ def get_rate(from_code, to_code):
         }
 
     raise ApiRequestError(f"курс {f}→{t} недоступен, повторите позже")
-
 
 # ---------- регистрация / логин ----------
 
