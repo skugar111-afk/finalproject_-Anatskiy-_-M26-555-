@@ -1,4 +1,4 @@
-from valutatrade_hub.cli.interface import run_cli
+from valutatrade_hub.cli.interface import main
 
 if __name__ == "__main__":
-    run_cli()
+    main()

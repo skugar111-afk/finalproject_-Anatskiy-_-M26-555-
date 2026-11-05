@@ -4,22 +4,44 @@ from .models import Portfolio, User, Wallet
 from .utils import load_json, save_json
 
 _current_user = None
+SESSION_FILE = "session.json"
 
 
 def get_current_user():
-    return _current_user
+    global _current_user
+    if _current_user is not None:
+        return _current_user
+    try:
+        data = load_json(SESSION_FILE)
+        user_id = data.get("user_id") if isinstance(data, dict) else None
+    except (FileNotFoundError, ValueError):
+        user_id = None
+    if user_id is None:
+        return None
+    for record in _load_users():
+        if int(record.get("user_id", -1)) == int(user_id):
+            _current_user = User.from_dict(record)
+            return _current_user
+    return None
 
 
 def set_current_user(user):
     global _current_user
     _current_user = user
+    if user is None:
+        try:
+            save_json(SESSION_FILE, {})
+        except Exception:
+            pass
+    else:
+        save_json(SESSION_FILE, {"user_id": user.user_id})
 
 
 def require_login():
-    if _current_user is None:
+    user = get_current_user()
+    if user is None:
         raise RuntimeError("Сначала выполните login")
-    return _current_user
-
+    return user
 
 def _load_users():
     raw = load_json("users.json")
