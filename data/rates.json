@@ -1,0 +1,4 @@
+{
+  "USD": {"rate": 1.0, "base": "USD"},
+  "EUR": {"rate": 1.08, "base": "USD"}
+}
