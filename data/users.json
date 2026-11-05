@@ -26,5 +26,19 @@
     "hashed_password": "5adc3ca92261ca9ac9376cdea90f1ed7dbb51b9ac7a8baa64291fa8ba291600f",
     "salt": "097599b3f9c1651d1f81c121432db475",
     "registration_date": "2026-11-05T15:57:03.866421"
+  },
+  {
+    "user_id": 5,
+    "username": "gina",
+    "hashed_password": "7c6c7ac1f35ea4496f5b846082138dd2fc9c92adc0e50f131e88799af0f0e633",
+    "salt": "36d87bc66c6c8eb216ede1de96cc860d",
+    "registration_date": "2026-11-05T16:22:45.190746"
+  },
+  {
+    "user_id": 6,
+    "username": "henry",
+    "hashed_password": "674e46eb484ccef4dce87a3667585aa0c4893f2294b37dc0f2a8edc40d7211f3",
+    "salt": "ece049f7d8fe632fe50f491a6fd6fae8",
+    "registration_date": "2026-11-05T16:24:32.815042"
   }
 ]
