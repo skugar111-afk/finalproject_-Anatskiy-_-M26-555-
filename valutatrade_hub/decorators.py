@@ -9,33 +9,39 @@ from valutatrade_hub.logging_config import get_logger
 logger = get_logger()
 
 
-def _extract_user(instance_or_cls, args: tuple, kwargs: dict) -> str:
-    user = kwargs.get("username") or kwargs.get("user")
-    if user is None and args:
+def _extract_user(args: tuple, kwargs: dict) -> str:
+    """Достать username: явный kwargs, объект user, либо первый позиционный."""
+    if "username" in kwargs:
+        return str(kwargs["username"])
+    user_obj = kwargs.get("user")
+    if user_obj is not None:
+        return str(getattr(user_obj, "username", user_obj))
+    if args:
         first = args[0]
+        if isinstance(first, str):
+            return first
         if hasattr(first, "username"):
-            user = first.username
-    return str(user) if user is not None else "anonymous"
+            return str(first.username)
+    return "anonymous"
+
+
+def _extract_currency(kwargs: dict) -> Any:
+    return kwargs.get("currency_code") or kwargs.get("currency")
 
 
 def log_action(action: str, verbose: bool = False) -> Callable:
     """Логирует вызов функции на уровне INFO и пробрасывает исключения дальше.
 
-    action — строка вида BUY/SELL/REGISTER/LOGIN.
-    verbose — добавлять ли в лог дополнительный контекст из результата.
+    action — BUY/SELL/REGISTER/LOGIN.
+    verbose — добавлять ли before/after из результата.
     """
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            username = _extract_user(None, args, kwargs)
-            currency = kwargs.get("currency_code") or kwargs.get("currency")
+            username = _extract_user(args, kwargs)
+            currency = _extract_currency(kwargs)
             amount = kwargs.get("amount")
-            if currency is None and len(args) >= 2:
-                currency = args[1]
-            if amount is None and len(args) >= 3:
-                amount = args[2]
-
             base = kwargs.get("base") or "USD"
             ts = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
@@ -43,7 +49,8 @@ def log_action(action: str, verbose: bool = False) -> Callable:
                 result = func(*args, **kwargs)
             except Exception as exc:
                 logger.error(
-                    "%s user=%r currency=%r amount=%r result=ERROR error_type=%s error=%r",
+                    "%s user=%r currency=%r amount=%r result=ERROR "
+                    "error_type=%s error=%r",
                     action,
                     username,
                     currency,
