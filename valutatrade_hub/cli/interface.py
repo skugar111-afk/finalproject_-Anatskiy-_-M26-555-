@@ -4,6 +4,12 @@ import argparse
 import sys
 
 from valutatrade_hub.core import usecases
+from valutatrade_hub.core.currencies import list_currency_codes
+from valutatrade_hub.core.exceptions import (
+    ApiRequestError,
+    CurrencyNotFoundError,
+    InsufficientFundsError,
+)
 
 
 def _fmt_money(value: float) -> str:
@@ -16,9 +22,20 @@ def _fmt_amount(value: float) -> str:
     return f"{value:,.4f}".rstrip("0").rstrip(".")
 
 
+def _print_currency_error(exc: CurrencyNotFoundError) -> None:
+    print(str(exc))
+    print(f"Поддерживаемые коды: {', '.join(list_currency_codes())}")
+    print("Подсказка: help get-rate — как получить курс")
+
+
+def _print_api_error(exc: ApiRequestError) -> None:
+    print(str(exc))
+    print("Повторите попытку позже или проверьте сетевое подключение.")
+
+
 def cmd_register(args: argparse.Namespace) -> int:
     try:
-        result = usecases.register(args.username, args.password)
+        result = usecases.register(username=args.username, password=args.password)
     except ValueError as exc:
         print(str(exc))
         return 1
@@ -29,7 +46,7 @@ def cmd_register(args: argparse.Namespace) -> int:
 
 def cmd_login(args: argparse.Namespace) -> int:
     try:
-        result = usecases.login(args.username, args.password)
+        result = usecases.login(username=args.username, password=args.password)
     except ValueError as exc:
         print(str(exc))
         return 1
@@ -40,7 +57,16 @@ def cmd_login(args: argparse.Namespace) -> int:
 def cmd_show_portfolio(args: argparse.Namespace) -> int:
     try:
         rows = usecases.show_portfolio(args.base)
-    except (RuntimeError, ValueError) as exc:
+    except CurrencyNotFoundError as exc:
+        _print_currency_error(exc)
+        return 1
+    except ApiRequestError as exc:
+        _print_api_error(exc)
+        return 1
+    except RuntimeError as exc:
+        print(str(exc))
+        return 1
+    except ValueError as exc:
         print(str(exc))
         return 1
     if not rows:
@@ -64,6 +90,15 @@ def cmd_show_portfolio(args: argparse.Namespace) -> int:
 def cmd_buy(args: argparse.Namespace) -> int:
     try:
         result = usecases.buy(args.currency, args.amount)
+    except InsufficientFundsError as exc:
+        print(str(exc))
+        return 1
+    except CurrencyNotFoundError as exc:
+        _print_currency_error(exc)
+        return 1
+    except ApiRequestError as exc:
+        _print_api_error(exc)
+        return 1
     except (RuntimeError, ValueError) as exc:
         print(str(exc))
         return 1
@@ -84,6 +119,15 @@ def cmd_buy(args: argparse.Namespace) -> int:
 def cmd_sell(args: argparse.Namespace) -> int:
     try:
         result = usecases.sell(args.currency, args.amount)
+    except InsufficientFundsError as exc:
+        print(str(exc))
+        return 1
+    except CurrencyNotFoundError as exc:
+        _print_currency_error(exc)
+        return 1
+    except ApiRequestError as exc:
+        _print_api_error(exc)
+        return 1
     except (RuntimeError, ValueError) as exc:
         print(str(exc))
         return 1
@@ -106,15 +150,18 @@ def cmd_get_rate(args: argparse.Namespace) -> int:
     t = args.to_currency.upper()
     try:
         direct = usecases.get_rate(f, t)
-    except ValueError as exc:
-        print(str(exc))
+    except CurrencyNotFoundError as exc:
+        _print_currency_error(exc)
+        return 1
+    except ApiRequestError as exc:
+        _print_api_error(exc)
         return 1
     print(f"Курс {f}→{t}: {direct['rate']:.8g} (обновлено: {direct['updated_at'] or '—'})")
     if f != t:
         try:
             reverse = usecases.get_rate(t, f)
             print(f"Обратный курс {t}→{f}: {reverse['rate']:.8g}")
-        except ValueError:
+        except (CurrencyNotFoundError, ApiRequestError):
             pass
     return 0
 
