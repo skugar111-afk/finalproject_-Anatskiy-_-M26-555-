@@ -5,8 +5,8 @@
       "updated_at": "2025-10-09T10:30:00"
     },
     "BTC_USD": {
-      "rate": 79629.0,
-      "updated_at": "2026-11-05T13:37:23Z",
+      "rate": 79638.0,
+      "updated_at": "2026-11-05T14:04:44Z",
       "source": "CoinGecko"
     },
     "RUB_USD": {
@@ -14,8 +14,8 @@
       "updated_at": "2025-10-09T10:31:12"
     },
     "ETH_USD": {
-      "rate": 2386.67,
-      "updated_at": "2026-11-05T13:37:23Z",
+      "rate": 2387.3,
+      "updated_at": "2026-11-05T14:04:44Z",
       "source": "CoinGecko"
     },
     "USD_USD": {
@@ -23,10 +23,10 @@
       "updated_at": "2025-10-09T10:35:00"
     },
     "SOL_USD": {
-      "rate": 95.27,
-      "updated_at": "2026-11-05T13:37:23Z",
+      "rate": 95.3,
+      "updated_at": "2026-11-05T14:04:44Z",
       "source": "CoinGecko"
     }
   },
-  "last_refresh": "2026-11-05T13:37:23Z"
+  "last_refresh": "2026-11-05T14:04:44Z"
 }
