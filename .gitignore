@@ -38,3 +38,4 @@ Thumbs.db
 *.log
 data/session.json
 logs/
+data/exchange_rates.json
